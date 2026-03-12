@@ -810,37 +810,8 @@ HTML_TEMPLATE = '''
         
         function closeModal() {
             document.getElementById('modal').classList.remove('active');
-        }
-        
-        function saveModal() {
-            if (currentModalType === 'team_analysis') {
-                const name = document.getElementById('modal_team_name').value;
-                const content = document.getElementById('modal_team_content').value;
-                if (name && content) {
-                    data.team_analysis.push({name, content});
-                    updateTeamAnalysisList();
-                    autoSave();
-                }
-            } else if (currentModalType === 'topic') {
-                const name = document.getElementById('modal_topic_name').value;
-                const conclusion = document.getElementById('modal_topic_conclusion').value;
-                const reasons = document.getElementById('modal_topic_reasons').value.split('\\n').filter(r => r.trim());
-                if (name) {
-                    data.topics.push({name, conclusion, reasons});
-                    updateTopicsList();
-                    autoSave();
-                }
-            } else if (currentModalType === 'future') {
-                const version = document.getElementById('modal_future_version').value;
-                const chars = document.getElementById('modal_future_chars').value;
-                const suggestion = document.getElementById('modal_future_suggestion').value;
-                if (version) {
-                    data.future_plans.push({version, chars, suggestion});
-                    updateFutureList();
-                    autoSave();
-                }
-            }
-            closeModal();
+            editingIndex = null;
+            editingType = null;
         }
         
         function updateTeamAnalysisList() {
@@ -848,7 +819,10 @@ HTML_TEMPLATE = '''
             list.innerHTML = data.team_analysis.map((item, idx) => `
                 <div class="list-item">
                     <span><strong>${item.name}</strong>: ${item.content.substring(0, 50)}...</span>
-                    <button class="btn btn-danger" onclick="deleteItem('team_analysis', ${idx})" style="padding: 5px 10px;">删除</button>
+                    <div>
+                        <button class="btn btn-secondary" onclick="editItem('team_analysis', ${idx})" style="padding: 5px 10px; margin-right: 5px;">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteItem('team_analysis', ${idx})" style="padding: 5px 10px;">删除</button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -858,7 +832,10 @@ HTML_TEMPLATE = '''
             list.innerHTML = data.topics.map((item, idx) => `
                 <div class="list-item">
                     <span><strong>${item.name}</strong></span>
-                    <button class="btn btn-danger" onclick="deleteItem('topics', ${idx})" style="padding: 5px 10px;">删除</button>
+                    <div>
+                        <button class="btn btn-secondary" onclick="editItem('topics', ${idx})" style="padding: 5px 10px; margin-right: 5px;">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteItem('topics', ${idx})" style="padding: 5px 10px;">删除</button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -868,9 +845,73 @@ HTML_TEMPLATE = '''
             list.innerHTML = data.future_plans.map((item, idx) => `
                 <div class="list-item">
                     <span><strong>${item.version}</strong>: ${item.chars}</span>
-                    <button class="btn btn-danger" onclick="deleteItem('future_plans', ${idx})" style="padding: 5px 10px;">删除</button>
+                    <div>
+                        <button class="btn btn-secondary" onclick="editItem('future_plans', ${idx})" style="padding: 5px 10px; margin-right: 5px;">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteItem('future_plans', ${idx})" style="padding: 5px 10px;">删除</button>
+                    </div>
                 </div>
             `).join('');
+        }
+        
+        let editingIndex = null;
+        let editingType = null;
+        
+        function editItem(type, idx) {
+            editingIndex = idx;
+            editingType = type;
+            const item = data[type][idx];
+            
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modal_title');
+            const body = document.getElementById('modal_body');
+            
+            if (type === 'team_analysis') {
+                title.textContent = '编辑队伍分析';
+                body.innerHTML = `
+                    <div class="form-group">
+                        <label>队伍名称</label>
+                        <input type="text" id="modal_team_name" value="${item.name}">
+                    </div>
+                    <div class="form-group">
+                        <label>分析内容</label>
+                        <textarea id="modal_team_content">${item.content}</textarea>
+                    </div>
+                `;
+            } else if (type === 'topics') {
+                title.textContent = '编辑专题';
+                body.innerHTML = `
+                    <div class="form-group">
+                        <label>专题名称</label>
+                        <input type="text" id="modal_topic_name" value="${item.name}">
+                    </div>
+                    <div class="form-group">
+                        <label>结论（可选）</label>
+                        <input type="text" id="modal_topic_conclusion" value="${item.conclusion || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>理由/分析（每行一条）</label>
+                        <textarea id="modal_topic_reasons">${item.reasons ? item.reasons.join('\\n') : ''}</textarea>
+                    </div>
+                `;
+            } else if (type === 'future_plans') {
+                title.textContent = '编辑版本抽卡建议';
+                body.innerHTML = `
+                    <div class="form-group">
+                        <label>版本</label>
+                        <input type="text" id="modal_future_version" value="${item.version}">
+                    </div>
+                    <div class="form-group">
+                        <label>角色</label>
+                        <input type="text" id="modal_future_chars" value="${item.chars || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>建议</label>
+                        <textarea id="modal_future_suggestion">${item.suggestion || ''}</textarea>
+                    </div>
+                `;
+            }
+            
+            modal.classList.add('active');
         }
         
         function deleteItem(type, idx) {
@@ -878,6 +919,66 @@ HTML_TEMPLATE = '''
             if (type === 'team_analysis') updateTeamAnalysisList();
             else if (type === 'topics') updateTopicsList();
             else if (type === 'future_plans') updateFutureList();
+            autoSave();
+        }
+        
+        function saveModal() {
+            if (editingIndex !== null && editingType) {
+                // 编辑模式
+                if (editingType === 'team_analysis') {
+                    const name = document.getElementById('modal_team_name').value;
+                    const content = document.getElementById('modal_team_content').value;
+                    if (name && content) {
+                        data.team_analysis[editingIndex] = {name, content};
+                        updateTeamAnalysisList();
+                    }
+                } else if (editingType === 'topics') {
+                    const name = document.getElementById('modal_topic_name').value;
+                    const conclusion = document.getElementById('modal_topic_conclusion').value;
+                    const reasons = document.getElementById('modal_topic_reasons').value.split('\\n').filter(r => r.trim());
+                    if (name) {
+                        data.topics[editingIndex] = {name, conclusion, reasons};
+                        updateTopicsList();
+                    }
+                } else if (editingType === 'future_plans') {
+                    const version = document.getElementById('modal_future_version').value;
+                    const chars = document.getElementById('modal_future_chars').value;
+                    const suggestion = document.getElementById('modal_future_suggestion').value;
+                    if (version) {
+                        data.future_plans[editingIndex] = {version, chars, suggestion};
+                        updateFutureList();
+                    }
+                }
+                editingIndex = null;
+                editingType = null;
+            } else {
+                // 新增模式
+                if (currentModalType === 'team_analysis') {
+                    const name = document.getElementById('modal_team_name').value;
+                    const content = document.getElementById('modal_team_content').value;
+                    if (name && content) {
+                        data.team_analysis.push({name, content});
+                        updateTeamAnalysisList();
+                    }
+                } else if (currentModalType === 'topic') {
+                    const name = document.getElementById('modal_topic_name').value;
+                    const conclusion = document.getElementById('modal_topic_conclusion').value;
+                    const reasons = document.getElementById('modal_topic_reasons').value.split('\\n').filter(r => r.trim());
+                    if (name) {
+                        data.topics.push({name, conclusion, reasons});
+                        updateTopicsList();
+                    }
+                } else if (currentModalType === 'future') {
+                    const version = document.getElementById('modal_future_version').value;
+                    const chars = document.getElementById('modal_future_chars').value;
+                    const suggestion = document.getElementById('modal_future_suggestion').value;
+                    if (version) {
+                        data.future_plans.push({version, chars, suggestion});
+                        updateFutureList();
+                    }
+                }
+            }
+            closeModal();
             autoSave();
         }
         
