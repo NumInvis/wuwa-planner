@@ -1472,6 +1472,6 @@ if __name__ == '__main__':
     print(f"数据存储目录: {DATA_DIR}")
     print(f"语料存储目录: {CORPUS_DIR}")
     print("=" * 60)
-    print("请在浏览器中访问: http://localhost:5000")
+    print("请在浏览器中访问: http://localhost:5123")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5123, debug=True)
